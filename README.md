@@ -55,7 +55,7 @@ To be able to run the project, make sure to have the following tools installed:
 *Parameters are displayed at the beginning of the code*
 
 - **modelToUse**: The model's name in Ollama (*gemma2:2b by default*).
-- **enableManualPath**: Bool that allows switching between asking the user what path wants to insert and automatically sorting the file specified in **folderPath** (*False by default*).
+- **enableManualPath**: Bool that allows switching between asking the user what path wants to insert and automatically sorting the file specified in **folderPath** (*False by default, folder needs to be changed within the code*).
 - **folderPath**: The file to sort when **enableManualPath** is set to False (*default*).
 
 ### <a name="contact"></a>Contact
