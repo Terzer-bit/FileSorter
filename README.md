@@ -29,8 +29,8 @@ To be able to run the project, make sure to have the following tools installed:
 - **Ollama**:  
 	Go to https://ollama.com/download and select your platform 
 	*Note: This project is currently only available for Windows*  
-- **AI model of preference** (*gemma:2b by default*):  
-	By default, it will automatically pull the model on the first run. Otherwise execute ```ollama run gemma:2b``` or any other AI model for the first time to pull from the repository the corresponding model.  
+- **AI model of preference** (*gemma2:2b by default*):  
+	By default, it will automatically pull the model on the first run. Otherwise execute ```ollama run gemma2:2b``` or any other AI model for the first time to pull from the repository the corresponding model.  
 
 #### <a name="installation"></a>Installation
 
@@ -54,7 +54,7 @@ To be able to run the project, make sure to have the following tools installed:
 
 *Parameters are displayed at the beginning of the code*
 
-- **modelToUse**: The model's name in Ollama (*gemma:2b by default*).
+- **modelToUse**: The model's name in Ollama (*gemma2:2b by default*).
 - **enableManualPath**: Bool that allows switching between asking the user what path wants to insert and automatically sorting the file specified in **folderPath** (*False by default*).
 - **folderPath**: The file to sort when **enableManualPath** is set to False (*default*).
 

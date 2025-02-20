@@ -3,14 +3,15 @@ import subprocess
 import re
 import shutil
 import tempfile
+from collections import defaultdict
 from tika import parser
 import ollama
 import time
 
-modelToUse = "gemma:2b" # How the model is called in ollama
+modelToUse = "gemma2:2b" # How the model is called in ollama
 
 enableManualPath = False
-folderPath = "./Nueva carpeta" # Path to the folder to order
+folderPath = "./path/to/folder" # Path to the folder to order
 
 def get_pdf_context(pdf_file, model=modelToUse):
     """
@@ -46,32 +47,45 @@ def extract_context_from_response(response_text):
     else:
         return response_text.strip()
 
+def find_common_words(str1, str2):
+    """Find common words between two strings."""
+    words1 = set(str1.lower().split())
+    words2 = set(str2.lower().split())
+
+    common = words1.intersection(words2)
+
+    if common:
+        return " ".join(sorted(common)).capitalize()  # Join and capitalize
+    return None
+
 def unify_context_groups(context_groups):
     """
-    Unify groups with similar context names. For example, if one key is "X" and another "Red X",
-    they will be merged into a single group under the shorter name ("X").
+    Unifies groups based on common words in their names.
+    Example: "Red X" and "Blue X" -> "X".
     """
     unified = {}
-    # Sort keys by length (shortest first)
-    keys_sorted = sorted(context_groups.keys(), key=lambda k: len(k))
+    keys_sorted = sorted(context_groups.keys(), key=len)  # Sort keys by length
+
     for key in keys_sorted:
         assigned = False
-        for ukey in unified.keys():
-            # If the key is contained in the unified key or vice versa, merge them.
-            if key.lower() in ukey.lower() or ukey.lower() in key.lower():
-                unified[ukey].extend(context_groups[key])
+        for ukey in list(unified.keys()):  # Copy keys to avoid modifying during iteration
+            common_name = find_common_words(key, ukey)
+            if common_name:
+                if common_name not in unified:
+                    unified[common_name] = []  # Ensure it exists
+                unified[common_name].extend(context_groups[key])
                 assigned = True
                 break
         if not assigned:
-            unified[key] = context_groups[key]
+            unified[key] = context_groups[key]  # Keep as-is if no common name found
+
     return unified
 
 def process_pdf_folder(folder_path, model=modelToUse, output_zip="organized_pdfs.zip"):
     """
     Scans the folder for PDF files, obtains a context summary for each,
-    groups files with identical contexts (extracted from between ** markers) into subfolders,
-    unifies similar group names (e.g. "X" and "Red X" become "X"),
-    and creates a zip archive of the organized structure.
+    groups files with identical contexts into subfolders, unifies similar
+    group names iteratively, and creates a zip archive of the organized structure.
     """
     # List PDF files in the folder.
     pdf_files = [
@@ -88,18 +102,22 @@ def process_pdf_folder(folder_path, model=modelToUse, output_zip="organized_pdfs
         print(f"File: {os.path.basename(pdf)} -> Full Context: '{full_context}' | Extracted: '{extracted_context}'")
         context_groups.setdefault(extracted_context, []).append(pdf)
     
-    # Unify similar context group names.
-    unified_groups = unify_context_groups(context_groups)
-    print("\nUnified Context Groups:")
-    for context, files in unified_groups.items():
+    # Iteratively unify context group names until no further merges occur.
+    while True:
+        new_groups = unify_context_groups(context_groups)
+        if new_groups == context_groups:  # If no changes, stop merging
+            break
+        context_groups = new_groups  # Continue merging
+    
+    print("\nFinal Unified Context Groups:")
+    for context, files in context_groups.items():
         print(f"Group '{context}' with {len(files)} files.")
     
     # Create a temporary directory for the organized structure.
     with tempfile.TemporaryDirectory() as temp_dir:
-        # For each unified group, create a subfolder and copy the PDFs if there are more than one file.
-        for context, files in unified_groups.items():
+        # Create folders and move files
+        for context, files in context_groups.items():
             if len(files) > 1:  # Only create a folder if more than one file falls into the group.
-                # Sanitize the folder name.
                 safe_context = "".join(c for c in context if c.isalnum() or c in (" ", "_", "-")).strip() or "Unknown"
                 subfolder = os.path.join(temp_dir, safe_context)
                 os.makedirs(subfolder, exist_ok=True)
@@ -109,19 +127,19 @@ def process_pdf_folder(folder_path, model=modelToUse, output_zip="organized_pdfs
                     except Exception as e:
                         print(f"Error copying file {file} to folder {subfolder}: {e}")
             else:
-                # If there is only one file, copy it directly to the main temp directory.
                 for file in files:
                     try:
                         shutil.copy2(file, os.path.join(temp_dir, os.path.basename(file)))
                     except Exception as e:
                         print(f"Error copying file {file} to main folder: {e}")
         
-        # Create the zip archive from the temporary directory.
+        # Create the zip archive from the organized structure.
         archive_name = os.path.splitext(output_zip)[0]
         shutil.make_archive(archive_name, 'zip', temp_dir)
         zip_path = f"{archive_name}.zip"
         print(f"\nZip file '{zip_path}' created with the organized structure.")
         return zip_path
+
 
 if __name__ == "__main__":
     # Start the subprocess (Ollama)
